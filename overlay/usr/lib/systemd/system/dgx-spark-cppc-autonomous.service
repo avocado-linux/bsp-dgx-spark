@@ -1,0 +1,12 @@
+[Unit]
+Description=DGX Spark: CPPC autonomous CPU performance selection
+After=systemd-modules-load.service
+ConditionPathExists=/sys/devices/system/cpu/cpufreq/policy0
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/dgx-spark/cppc-autonomous
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+#!/bin/sh
+# Hand GB10 CPU performance selection to the hardware (CPPC autonomous mode,
+# Energy Performance Preference 0 = performance), as DGX OS does. Without it
+# the memory fabric never enters autonomous performance management and
+# single-thread memory bandwidth drops about 3x. NVIDIA's kernel does this with
+# cppc_cpufreq.auto_sel_mode=1; mainline exposes the same registers in sysfs.
+set -eu
+
+found=0
+for p in /sys/devices/system/cpu/cpufreq/policy*; do
+    [ -w "$p/auto_select" ] || continue
+    echo 0 > "$p/energy_performance_preference_val"
+    echo 1 > "$p/auto_select"
+    found=1
+done
+
+if [ "$found" = 0 ]; then
+    echo "cppc-autonomous: no CPPC auto_select in sysfs (cppc_cpufreq not bound?)" >&2
+    exit 1
+fi

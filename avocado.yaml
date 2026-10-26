@@ -1,0 +1,130 @@
+# The DGX Spark runs on the generic Armv9-A UEFI machine; everything board
+# specific lives in this extension.
+default_target: arm64-uefi-v9
+supported_targets:
+  - arm64-uefi-v9
+
+extensions:
+  avocado-bsp-dgx-spark:
+    version: 0.1.4
+    release: r0
+    summary: Board support for the NVIDIA DGX Spark
+    description: >
+      Board support for the NVIDIA DGX Spark (GB10 Grace-Blackwell): the
+      integrated Blackwell GPU driver stack, ConnectX-7 Ethernet and RDMA,
+      RTL8127A networking, MT7925 Wi-Fi 7 and Bluetooth, and CPPC autonomous
+      frequency scaling.
+    license: Apache-2.0
+    url: https://github.com/avocadolinux/avocado-os
+    vendor: Avocado Linux <info@avocadolinux.org>
+
+    types:
+      - sysext
+      - confext
+
+    # CPPC autonomous mode, RDMA memlock limits (see overlay/).
+    overlay: overlay
+
+    modprobe:
+      # dgx-spark-cppc-autonomous.service needs the cpufreq policies.
+      - cppc_cpufreq
+      # nvidia-uvm (the CUDA unified-memory module) has no modalias, so nothing
+      # autoloads it; nvidia itself binds the iGPU by PCI ID.
+      - nvidia-uvm
+      # RDMA verbs and the RDMA CM for userspace (NCCL, MPI); like nvidia-uvm,
+      # nothing binds a device that would autoload them.
+      - ib_uverbs
+      - rdma_ucm
+
+    # nvidia-persistenced ships in nvidia-gpu-userspace, bluetooth in bluez5,
+    # the CPPC unit in overlay/; presets do not apply inside a sysext, so the
+    # extension enables them.
+    enable_services:
+      - nvidia-persistenced.service
+      - dgx-spark-cppc-autonomous.service
+      - bluetooth.service
+
+    on_merge:
+      - udevadm control --reload
+      - udevadm trigger --type=subsystems --action=add --settle
+      - udevadm trigger --type=devices --action=add --settle
+      - systemctl start --no-block nvidia-persistenced.service
+
+    packages:
+      # --- GB10 iGPU: open kernel modules, userspace, GSP firmware ---
+      kernel-module-nvidia: '*'
+      kernel-module-nvidia-modeset: '*'
+      kernel-module-nvidia-drm: '*'
+      kernel-module-nvidia-uvm: '*'
+      nvidia-gpu-userspace: '*'
+      nvidia-gpu-firmware: '*'
+
+      # --- ConnectX-7 (2x QSFP) ---
+      kernel-module-mlx5-core: '*'
+      kernel-module-mlx5-ib: '*'
+      kernel-module-ib-uverbs: '*'
+      kernel-module-rdma-ucm: '*'
+      # loaded by rdma-core's rdma-load-modules at boot
+      kernel-module-ib-ipoib: '*'
+      kernel-module-ib-umad: '*'
+      kernel-module-ib-iser: '*'
+      kernel-module-rpcrdma: '*'
+      rdma-core: '*'
+
+      # --- 10GbE RJ45 (RTL8127A on r8169) ---
+      kernel-module-r8169: '*'
+      kernel-module-realtek: '*'
+      linux-firmware-rtl-nic: '*'
+
+      # --- MT7925 Wi-Fi 7 and Bluetooth ---
+      kernel-module-mt7925e: '*'
+      kernel-module-btusb: '*'
+      kernel-module-btmtk: '*'
+      linux-firmware-mediatek: '*'
+      wpa-supplicant: '*'
+      iw: '*'
+      bluez5: '*'
+      wireless-regdb-static: '*'
+
+      # --- HDMI audio (GB10 HD Audio controller is an ACPI device) ---
+      kernel-module-snd-hda-acpi: '*'
+      kernel-module-snd-hda-codec-hdmi: '*'
+      kernel-module-snd-hda-codec-nvhdmi: '*'
+      alsa-utils-aplay: '*'
+
+      # --- CPU frequency scaling (ACPI CPPC) ---
+      kernel-module-cppc-cpufreq: '*'
+
+      # --- NVMe ---
+      kernel-module-nvme: '*'
+
+      # --- Network filtering (container support) ---
+      kernel-module-ip-tables: '*'
+      kernel-module-iptable-filter: '*'
+      kernel-module-iptable-nat: '*'
+      kernel-module-nf-nat: '*'
+      kernel-module-nf-conntrack: '*'
+      kernel-module-x-tables: '*'
+      kernel-module-xt-conntrack: '*'
+      kernel-module-xt-masquerade: '*'
+
+      # --- Networking ---
+      kernel-module-wireguard: '*'
+      kernel-module-tun: '*'
+      kernel-module-bridge: '*'
+
+      # --- Firmware updates (UEFI, EC, USB-C PD capsules from LVFS) ---
+      fwupd: '*'
+
+      # --- Userspace tools ---
+      efibootmgr: '*'
+      pciutils: '*'
+      dmidecode: '*'
+      nvme-cli: '*'
+      ethtool: '*'
+
+    # Rubicon wiring and provision bindings: to be added with the bench
+    # run profiles.
+
+sdk:
+  image: docker.io/avocadolinux/sdk:{{ env.AVOCADO_DISTRO_RELEASE }}
