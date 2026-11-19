@@ -15,7 +15,7 @@ extensions:
       RTL8127A networking, MT7925 Wi-Fi 7 and Bluetooth, and CPPC autonomous
       frequency scaling.
     license: Apache-2.0
-    url: https://github.com/avocadolinux/avocado-os
+    url: https://github.com/avocado-linux/bsp-dgx-spark
     vendor: Avocado Linux <info@avocadolinux.org>
 
     types:
